@@ -43,7 +43,6 @@ begin
   MakeCompass('N');
   If WaitFunc(@C_OpenConsole, 10, 5000) then
   begin
-    If IsFKeyDown(12) then terminatescript;
     If PageUp then TypeByte(VK_PRIOR)
       else
     SendKeys('getcamerapos', RandomRange(10, 50));
