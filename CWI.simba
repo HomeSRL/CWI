@@ -1,0 +1,158 @@
+
+
+
+var
+  PageUp :Boolean;
+  CurrPos :TPoint;
+  CONSOLE_KEY :String;
+
+
+
+function C_ConsoleOpen :Boolean;
+begin
+  Result := GetColor(31, 340) = clWhite;
+end;
+
+
+
+function C_OpenConsole :Boolean;
+begin
+  If C_ConsoleOpen then
+  begin
+    Result := True;
+    Exit;
+  end;
+  SendKeys(CONSOLE_KEY, RandomRange(10, 50));
+  Result := WaitFunc(@C_ConsoleOpen, 10, 4000);
+end;
+
+
+
+function C_DataChange(OldDataCount :Integer) :Boolean;
+begin
+  Result := OldDataCount <> CountColor(clWhite, 6, 295, 281, 310);
+end;
+
+
+
+function C_UpdatePos :Boolean;
+var
+  OldDataCount :Integer;
+  Arg :TVariantArray;
+begin
+  MakeCompass('N');
+  If WaitFunc(@C_OpenConsole, 10, 5000) then
+  begin
+    If IsFKeyDown(12) then terminatescript;
+    If PageUp then TypeByte(VK_PRIOR)
+      else
+    SendKeys('getcamerapos', RandomRange(10, 50));
+    OldDataCount := CountColor(clWhite, 6, 295, 281, 310);
+    Arg := [OldDataCount];
+    TypeByte(VK_RETURN);
+    If WaitFuncEx('C_DataChange', Arg, RandomRange(10, 15), 500)then
+    begin
+      PageUp := True;
+      Result := True;
+    end;
+  end;
+end;
+
+
+
+
+
+function C_GetPosEx :TIntegerArray;
+var
+  Box :TBox;
+  TPA :TPointArray;
+  CPos :String;
+  I :Integer;
+  TSA :TStringArray;
+begin
+  If not C_UpdatePos then Exit;
+  FindColors(TPA, clWhite, 65, 296, 516, 307);
+  Box := GetTPABounds(TPA);
+  CPos := GetTextAtExWrap(Box.X1 - 2, Box.Y1 - 2, Box.X2 + 2, Box.Y2 + 2, 0, 5, 4, clWhite, 0, SmallChars);
+  CPos := Between('s: ', 'H', CPos);
+  TSA := Explode('''', CPos);
+  If Length(TSA) < 4 then Exit;
+  for I := 0 to Length(TSA) - 1 do
+    TSA[I] := Trim(TSA[I]);
+  SetLength(Result, 5);
+  for I := 1 to 4 do
+    Result[I] := StrToInt(TSA[I]);
+  DeleteValueInIntArray(Result, 0);
+
+end;
+
+
+
+function C_ConvertToGlobalPos(Position :TIntegerArray) :TPoint;
+begin
+  If Length(Position) = 4 then
+  begin
+    Result.X := Round(Position[0] * 64) + Position[2];
+    Result.Y := Round(Position[1] * 64) + Position[3];
+  end;
+end;
+
+
+function C_GetPos :TPoint;
+begin
+  Result := C_ConvertToGlobalPos(C_GetPosEx);
+  CurrPos := Result;
+end;
+
+
+function C_PointToMM(P: TPoint; MyPos: TPoint) :TPoint;
+begin
+  Result.X := (P.X - MyPos.X) * 4 - 2;
+  Result.X := Result.X + MMCX;
+  Result.Y := (MyPos.Y - P.Y) * 4 - 2;
+  Result.Y := Result.Y + MMCY;
+end;
+
+
+
+
+
+function C_WalkPath(Path: TPointArray): Boolean;
+var
+  I, H, T, D: integer;
+  MM: TPoint;
+begin
+  T := 1;
+  H := High(Path);
+  T := GetSystemTime + 20000 + Random(5000);
+
+  while (not Result) and (GetSystemTime < T) and (T <> 0) do
+  begin
+    RunEnergy(20);
+    CurrPos := C_GetPos;
+    for I := H downto 0 do
+    begin
+      T := H;
+      If Distance(Path[I].X, Path[I].Y, CurrPos.X, CurrPos.Y) > 15 then Continue;
+      If C_ConsoleOpen then
+        SendKeys(CONSOLE_KEY, RandomRange(10, 50));
+      MM := C_PointToMM(Path[I], CurrPos);
+
+      D := Distance(MM.X, MM.Y, MMCX, MMCY);
+
+      if (D < 10) then
+        break
+      else
+        if (D < 70) then
+        begin
+          Mouse(MM.X, MM.Y, 0, 0, mouse_Left);
+          FFlag(Integer(I <> H) * 15);
+
+          T := getSystemTime + 20000 + Random(1000);
+ 	        Break;
+        end;
+    end;
+
+    Result := (I = H);
+  end;
+end;

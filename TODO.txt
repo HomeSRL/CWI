@@ -1,0 +1,1 @@
+- Take Compass Angle Into Account
